@@ -1,6 +1,35 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+class primitive_object:
+    def __init__(self, posx, posy, posz, ambr, ambg, ambb, difr, difg, difb, specr, specg, specb, shininess, reflection):
+        self.position = np.array([posx, posy, posz])
+        self.ambient = np.array([ambr, ambg, ambb])
+        self.diffuse = np.array([difr, difg, difb])
+        self.specular = np.array([specr, specg, specb])
+        self.shininess = shininess
+        self.reflection = reflection
+
+class sphere(primitive_object):
+
+    def __init__(self, radius, posx, posy, posz, ambr, ambg, ambb, difr, difg, difb, specr, specg, specb, shininess, reflection):
+        super().__init__(posx, posy, posz, ambr, ambg, ambb, difr, difg, difb, specr, specg, specb, shininess, reflection)
+        self.radius = radius
+
+    def intersect(self, ray_origin, ray_direction):
+        b = 2 * np.dot(ray_direction, ray_origin - self.position)
+        c = np.linalg.norm(ray_origin - self.position) ** 2 - self.radius ** 2
+        delta = b ** 2 - 4 * c
+        if delta > 0:
+            t1 = (-b + np.sqrt(delta)) / 2
+            t2 = (-b - np.sqrt(delta)) / 2
+            if t1 > 0 and t2 > 0:
+                return(min(t1, t2))
+        return None
+
+    def calculate_normal_to_surface(self, point):
+        return normalize(point - self.position)
+
 def normalize(vector):
     return vector / np.linalg.norm(vector)
 
@@ -16,7 +45,7 @@ def sphere_intersect(center, radius, ray_origin, ray_direction):
     return None
 
 def nearest_intersection(objects, ray_origin, ray_direction):
-    distances = [sphere_intersect(obj["center"], obj["radius"], ray_origin, ray_direction) for obj in objects]
+    distances = [obj.intersect(ray_origin, ray_direction) for obj in objects]
     nearest_object = None
     min_distance = np.inf
     for index, distance in enumerate(distances):
@@ -35,10 +64,10 @@ height = 200
 max_depth = 3
 
 objects = [
-    {"center": np.array([0, -.25, -1]), "radius": .5, "ambient": np.array([.1, 0, 0]), "diffuse": np.array([.7, 0, 0]), "specular": np.array([1, 1, 1]), "shininess": 100, "reflection": .15},
-    {"center": np.array([-.1, .1, 0]), "radius": .1,  "ambient": np.array([0, .1, 0]), "diffuse": np.array([0, .7, 0]), "specular": np.array([1, 1, 1]), "shininess": 100, "reflection": .5},
-    {"center": np.array([.1, -.3, 0]), "radius": .1, "ambient": np.array([0, 0, .1]), "diffuse": np.array([0, 0, .7]), "specular": np.array([1, 1, 1]), "shininess": 100, "reflection": .5},
-    {'center': np.array([0, -9000, 0]), 'radius': 9000 - 0.7, 'ambient': np.array([0.1, 0.1, 0.1]), 'diffuse': np.array([0.6, 0.6, 0.6]), 'specular': np.array([1, 1, 1]), 'shininess': 100, "reflection": .5 }
+    sphere(.5, 0, -.25, -1, .1, 0, 0, .7, 0, 0, 1, 1, 1, 100, .15),
+    sphere(.1, -.1, .1, 0, 0, .1, 0, 0, .7, 0, 1, 1, 1, 100, .5),
+    sphere(.1, .1, -.3, 0, 0, 0, .1, 0, 0, .7, 1, 1, 1, 100, .5),
+    sphere(9000-.7, 0, -9000, 0, .1, .1, .1, .7, .7, .7, 1, 1, 1, 100, .5)
 ]
 
 light = {"position": np.array([3, 5, 5]), "ambient": np.array([1, 1, 1]), "diffuse": np.array([1, 1, 1]), "specular": np.array([1, 1, 1])}
@@ -61,7 +90,7 @@ for i, y in enumerate(np.linspace(screen[1], screen[3], height)):
             if nearest_object:
                 intersection = origin + min_distance * direction
 
-                normal_to_surface = normalize(intersection - nearest_object["center"])
+                normal_to_surface = nearest_object.calculate_normal_to_surface(intersection)
                 shifted_point = intersection + 1e-5 * normal_to_surface
                 intersection_to_light = light["position"] - shifted_point
 
@@ -75,17 +104,17 @@ for i, y in enumerate(np.linspace(screen[1], screen[3], height)):
                 I = np.zeros(3)
 
                 #begin with ambient
-                I += nearest_object["ambient"] * light["ambient"]
+                I += nearest_object.ambient * light["ambient"]
 
                 if not is_shadowed:
                     #now do diffuse
-                    I += nearest_object["diffuse"] * light["diffuse"] * np.dot(L, N)
+                    I += nearest_object.diffuse * light["diffuse"] * np.dot(L, N)
 
                     #finally, do specular
-                    I += nearest_object["specular"] * light["specular"] * (np.dot(N, normalize(L + V)) ** (nearest_object["shininess"] / 4))
+                    I += nearest_object.specular * light["specular"] * (np.dot(N, normalize(L + V)) ** (nearest_object.shininess / 4))
 
                 color += I * reflection
-                reflection *= nearest_object["reflection"]
+                reflection *= nearest_object.reflection
 
                 origin = shifted_point
                 direction = reflected(direction, normal_to_surface)
