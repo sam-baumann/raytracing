@@ -151,4 +151,4 @@ for i, y in enumerate(np.linspace(screen[1], screen[3], height)):
         image[i, j] = np.clip(color, 0, 1)
     print("Progress: %d/%d" % (i + 1, height))
 
-plt.imsave("image.png", image)
+plt.imsave("images/image.png", image)
